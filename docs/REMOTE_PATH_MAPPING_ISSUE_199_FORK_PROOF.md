@@ -41,4 +41,18 @@ mapping-test object. This exactly explains all three user-visible symptoms.
 
 The targeted correction registers the real service after `AutoAddServices` in
 both console-host and utility-host paths, replacing the accidental no-op
-registration. The Docker-level regression must pass before calling this fixed.
+registration.
+
+## Verified fork image regression
+
+The source-built pre-fix image reproduced the no-op failure in GitHub Actions
+run 42422076052. An opt-in diagnostic run (42422478434) revealed the actual
+resolved service type. Patched source at commit 6c7bb175985e9e9a4b80de3aa2c828d0c2c24a83
+then passed the full Docker HTTP and SQLite lifecycle in run 42422924087:
+request mapping, created ID 1, GET list/by-ID, actual SQLite row, restart and
+DELETE. Temporary controller logging was removed after diagnosis.
+
+The automated workflow now publishes only after that same live regression
+succeeds, into the fork-owned `ghcr.io/hadnutz/chaptarrng` namespace, under
+`remote-path-199` and a commit-specific tag. Production import from a
+real Windows qBittorrent download client is a separate acceptance gate.

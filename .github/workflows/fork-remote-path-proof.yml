@@ -7,15 +7,32 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   published-style-image:
-    name: Docker build and HTTP/SQLite mapping round trip
+    name: Docker build, mapping lifecycle, publish tested fork image
+    if: github.ref == 'refs/heads/fix/remote-path-mapping-199'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Build fresh image from fork source (no publish)
-        run: docker build --progress=plain -f Dockerfile.build -t chaptarrng:fork-rpm199 .
+      - name: Build fresh image from fork source
+        run: |
+          docker build --progress=plain -f Dockerfile.build \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            -t chaptarrng:fork-rpm199 .
       - name: Verify remote paths via real HTTP, SQLite and restart
         run: python3 integration/test_remote_path_mapping_image.py --image chaptarrng:fork-rpm199
+      - name: Publish only the tested fork image to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_BASE: ghcr.io/hadnutz/chaptarrng
+        run: |
+          set -euo pipefail
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker tag chaptarrng:fork-rpm199 "${IMAGE_BASE}:remote-path-199"
+          docker tag chaptarrng:fork-rpm199 "${IMAGE_BASE}:remote-path-199-${GITHUB_SHA:0:12}"
+          docker push "${IMAGE_BASE}:remote-path-199"
+          docker push "${IMAGE_BASE}:remote-path-199-${GITHUB_SHA:0:12}"
