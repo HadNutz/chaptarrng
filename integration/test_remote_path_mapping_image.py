@@ -92,7 +92,8 @@ def main():
                          "-p", f"127.0.0.1:{args.port}:8789",
                          "-v", f"{config}:/config",
                          "-v", f"{downloads}:/downloads",
-                         "-e", "PUID=0", "-e", "PGID=0", args.image)
+                         "-e", f"PUID={os.getuid()}", "-e", f"PGID={os.getgid()}",
+                         "-e", "CHAPTARR_RPM199_DIAGNOSTICS=1", args.image)
             print(f"Started disposable container: {run.stdout.strip()}", flush=True)
             key = ready(base, config / "config.xml", args.ready_timeout)
             root = "/api/v1/remotepathmapping"

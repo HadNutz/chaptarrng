@@ -150,10 +150,34 @@ namespace Chaptarr.Api.V1.RemotePathMappings
         [Produces("application/json")]
         public ActionResult<RemotePathMappingTestResource> TestMapping([FromBody] RemotePathMappingTestResource resource)
         {
-            var result = _remotePathMappingService.Test(resource.ToModel()).ToResource();
+            // Issue #199: opt-in diagnostics to prove which service and request
+            // actually reach the container's HTTP endpoint. Do not log paths or
+            // request bodies; this is safe to leave disabled in normal installs.
+            var rpmDiagnostics = Environment.GetEnvironmentVariable("CHAPTARR_RPM199_DIAGNOSTICS") == "1";
+            if (rpmDiagnostics)
+            {
+                Logger.Warn("RPM199 controller ENTER: serviceType={0}; requestNonNull={1}; hostPresent={2}; remotePresent={3}; localPresent={4}",
+                    _remotePathMappingService.GetType().AssemblyQualifiedName,
+                    resource != null,
+                    !string.IsNullOrWhiteSpace(resource?.Host),
+                    !string.IsNullOrWhiteSpace(resource?.RemotePath),
+                    !string.IsNullOrWhiteSpace(resource?.LocalPath));
+            }
 
+            var model = resource.ToModel();
+            var serviceResult = _remotePathMappingService.Test(model);
+            if (rpmDiagnostics)
+            {
+                Logger.Warn("RPM199 controller SERVICE RETURN: hostPresent={0}; remotePresent={1}; localPresent={2}; mappedPresent={3}; isMapped={4}",
+                    !string.IsNullOrWhiteSpace(serviceResult?.Host),
+                    !string.IsNullOrWhiteSpace(serviceResult?.RemotePath),
+                    !string.IsNullOrWhiteSpace(serviceResult?.LocalPath),
+                    !string.IsNullOrWhiteSpace(serviceResult?.MappedPath),
+                    serviceResult?.IsMapped);
+            }
+
+            var result = serviceResult.ToResource();
             EnrichDownloadClientTest(result);
-
             return result;
         }
 
