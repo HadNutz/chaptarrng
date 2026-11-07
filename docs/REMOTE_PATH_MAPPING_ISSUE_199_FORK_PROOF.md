@@ -27,3 +27,18 @@ inspect route discovery, runtime service resolution and middleware first.
 
 The proof does **not** establish an actual qBittorrent import end-to-end.
 That must follow after this HTTP/persistence defect is resolved.
+
+## Diagnosed root cause (fork Docker run)
+
+The image built from unchanged source reproduced the published-image failure.
+Opt-in controller diagnostics showed that DryIoc was injecting
+`NzbDrone.Core.Download.Clients.Direct.DirectDownloadClient+NoopRemotePathMappingService`
+instead of `NzbDrone.Core.RemotePathMappings.RemotePathMappingService`.
+The nested private Noop service in `DirectDownloadClientItems.cs` implements the
+same interface and is inadvertently picked up by assembly-wide `RegisterMany`.
+That implementation intentionally returns an empty list, ID zero and a default
+mapping-test object. This exactly explains all three user-visible symptoms.
+
+The targeted correction registers the real service after `AutoAddServices` in
+both console-host and utility-host paths, replacing the accidental no-op
+registration. The Docker-level regression must pass before calling this fixed.
