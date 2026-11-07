@@ -1,0 +1,21 @@
+name: Remote path mapping issue 199 - HTTP image regression
+
+on:
+  push:
+    branches: [fix/remote-path-mapping-199]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  published-style-image:
+    name: Docker build and HTTP/SQLite mapping round trip
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build fresh image from fork source (no publish)
+        run: docker build --progress=plain -f Dockerfile.build -t chaptarrng:fork-rpm199 .
+      - name: Verify remote paths via real HTTP, SQLite and restart
+        run: python3 integration/test_remote_path_mapping_image.py --image chaptarrng:fork-rpm199
