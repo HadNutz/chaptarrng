@@ -1,0 +1,17 @@
+name: Verify anonymous GHCR pull (issue 199)
+on:
+  push:
+    branches: [verify/remote-path-199-public-pull]
+permissions:
+  contents: read
+jobs:
+  anonymous-pull:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Pull without GHCR credentials
+        run: |
+          set -euo pipefail
+          docker logout ghcr.io || true
+          docker pull ghcr.io/hadnutz/chaptarrng:remote-path-199-dacbd98725a3
+          docker image inspect ghcr.io/hadnutz/chaptarrng:remote-path-199-dacbd98725a3 --format '{{index .Config.Labels "org.opencontainers.image.revision"}}'
