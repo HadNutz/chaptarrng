@@ -4404,7 +4404,7 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
             var mapStopwatch = Stopwatch.StartNew();
             var logger = _logger;
 
-            logger.Info("[PERF] MapAuthor started for {0} - Works: {1}, Series: {2}", resource.Name, resource.Works?.Count ?? 0, resource.Series?.Count ?? 0);
+            logger.Debug("[PERF] MapAuthor started for {0} - Works: {1}, Series: {2}", resource.Name, resource.Works?.Count ?? 0, resource.Series?.Count ?? 0);
 
             // Create Author with metadata fields directly
             var author = new Author
@@ -4587,17 +4587,17 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
             logger.Debug("=== END BOOK LINKS DEBUG ===");
 
             worksStopwatch.Stop();
-            logger.Info("[PERF] Processed {0} works into {1} books in {2}ms", resource.Works?.Count ?? 0, books.Count, worksStopwatch.ElapsedMilliseconds);
+            logger.Debug("[PERF] Processed {0} works into {1} books in {2}ms", resource.Works?.Count ?? 0, books.Count, worksStopwatch.ElapsedMilliseconds);
 
             var seriesStopwatch = Stopwatch.StartNew();
             var series = (resource.Series ?? new List<SeriesResource>()).Select(x => MapSeries(x, provider)).ToList();
             seriesStopwatch.Stop();
-            logger.Info("[PERF] Processed {0} series in {1}ms", series.Count, seriesStopwatch.ElapsedMilliseconds);
+            logger.Debug("[PERF] Processed {0} series in {1}ms", series.Count, seriesStopwatch.ElapsedMilliseconds);
 
             var seriesLinksStopwatch = Stopwatch.StartNew();
             MapSeriesLinks(series, books, resource.Series ?? new List<SeriesResource>(), provider);
             seriesLinksStopwatch.Stop();
-            logger.Info("[PERF] Mapped series relationships in {0}ms", seriesLinksStopwatch.ElapsedMilliseconds);
+            logger.Debug("[PERF] Mapped series relationships in {0}ms", seriesLinksStopwatch.ElapsedMilliseconds);
 
             // Add books and series to the author we created earlier
             author.CleanName = Parser.Parser.CleanAuthorName(author.Name);
@@ -4605,7 +4605,7 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
             author.Series = series;
 
             mapStopwatch.Stop();
-            logger.Info("[PERF] Total MapAuthor time: {0}ms for {1}", mapStopwatch.ElapsedMilliseconds, resource.Name);
+            logger.Debug("[PERF] Total MapAuthor time: {0}ms for {1}", mapStopwatch.ElapsedMilliseconds, resource.Name);
 
             return author;
         }
@@ -4691,7 +4691,7 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
             var title = resource.Title;
             if (compatibility)
             {
-                title = title.IsNotNullOrWhiteSpace() ? title.CleanSpaces() : editionResources.FirstOrDefault()?.Title.CleanSpaces();
+                title = title.IsNotNullOrWhiteSpace() ? title.CleanSpaces() : editionResources.FirstOrDefault()?.Title?.CleanSpaces();
             }
 
             // Remove series information from title if present
@@ -4718,7 +4718,7 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
 
             if (editionResources != null)
             {
-                book.Editions = editionResources.Select(x => MapEdition(x, provider, compatibility)).ToList();
+                book.Editions = editionResources.Where(x => x != null).Select(x => MapEdition(x, provider, compatibility)).ToList();
                 if (compatibility && book.Editions.Any())
                 {
                     book.Editions.MaxBy(edition => edition.Ratings.Popularity).Monitored = true;
@@ -4731,7 +4731,7 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
                 if (!compatibility && book.Title.IsNullOrWhiteSpace() && book.Editions.Any())
                 {
                     var mostPopular = book.Editions.MaxBy(x => x.Ratings.Popularity);
-                    if (mostPopular != null)
+                    if (mostPopular?.Title.IsNotNullOrWhiteSpace() == true)
                     {
                         // Clean series information from edition title too
                         var editionTitle = Regex.Replace(mostPopular.Title, @"\s*\([^)]+[,\s]+#\d+\)$", "").Trim();
@@ -4804,7 +4804,7 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
                 TitleSlug = isHardcover && !compatibility ? $"hc:edition:{rawId}" : rawId,
                 Isbn13 = resource.Isbn13,
                 Asin = resource.Asin,
-                Title = resource.Title.CleanSpaces(),
+                Title = resource.Title.IsNotNullOrWhiteSpace() ? resource.Title.CleanSpaces() : string.Empty,
                 Language = resource.Language,
                 Overview = resource.Description,
                 Format = resource.Format,
