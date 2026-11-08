@@ -21,6 +21,40 @@ namespace Chaptarr.Core.Test.Books
         }
 
         [Test]
+        public void matching_one_of_multiple_selected_editions_does_not_force_a_duplicate_book()
+        {
+            var book = new Book { Id = 1, AnyEditionOk = false };
+            var english = new Edition { Id = 10, BookId = book.Id, Monitored = true };
+            var italian = new Edition { Id = 11, BookId = book.Id, Monitored = true };
+            var unknown = new Edition { Id = 12, BookId = book.Id, Monitored = false };
+
+            var editions = new List<Edition> { english, italian, unknown };
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(EditionPinPolicy.FindConflictingProtectedEdition(book, editions, english.Id), Is.Null);
+                Assert.That(EditionPinPolicy.FindConflictingProtectedEdition(book, editions, italian.Id), Is.Null);
+                Assert.That(EditionPinPolicy.FindConflictingProtectedEdition(book, editions, unknown.Id)?.Id,
+                    Is.EqualTo(english.Id), "a truly different edition must still preserve the selected editions");
+            });
+        }
+
+        [Test]
+        public void any_protected_manual_add_edition_may_receive_its_matching_file()
+        {
+            var book = new Book { Id = 1, AnyEditionOk = true };
+            var firstCopy = new Edition { Id = 10, BookId = book.Id, ManualAdd = true };
+            var secondCopy = new Edition { Id = 11, BookId = book.Id, ManualAdd = true };
+            var unrelated = new Edition { Id = 12, BookId = book.Id };
+
+            var editions = new List<Edition> { firstCopy, secondCopy, unrelated };
+
+            Assert.That(EditionPinPolicy.FindConflictingProtectedEdition(book, editions, firstCopy.Id), Is.Null);
+            Assert.That(EditionPinPolicy.FindConflictingProtectedEdition(book, editions, secondCopy.Id), Is.Null);
+            Assert.That(EditionPinPolicy.FindConflictingProtectedEdition(book, editions, unrelated.Id), Is.Not.Null);
+        }
+
+        [Test]
         public void manual_add_remains_protected_when_any_edition_is_otherwise_allowed()
         {
             var book = new Book { Id = 1, AnyEditionOk = true };

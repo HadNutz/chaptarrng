@@ -33,8 +33,17 @@ namespace NzbDrone.Core.Books
                 return null;
             }
 
-            return GetProtectedEditions(book, editions)
-                .FirstOrDefault(edition => edition.Id != targetEditionId);
+            var protectedEditions = GetProtectedEditions(book, editions);
+
+            // Multiple editions may be explicitly selected for the same book.
+            // A match to ANY selected edition is valid; the presence of another
+            // selected edition must not force a duplicate book instance.
+            if (protectedEditions.Any(edition => edition.Id == targetEditionId))
+            {
+                return null;
+            }
+
+            return protectedEditions.FirstOrDefault();
         }
 
         public static bool CanAutomationSelectEdition(Book book, IEnumerable<Edition> editions)
