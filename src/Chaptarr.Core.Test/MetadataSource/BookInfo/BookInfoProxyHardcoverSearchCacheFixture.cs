@@ -68,6 +68,7 @@ namespace Chaptarr.Core.Test.MetadataSource.BookInfo
         {
             public bool IsConfigured => true;
             public bool IsNativeEnabled => true;
+            public bool ReturnUntitledWork { get; set; }
             public int WorkLookups { get; private set; }
             public int EditionLookups { get; private set; }
             public bool SearchWasInteractive { get; private set; }
@@ -103,7 +104,14 @@ namespace Chaptarr.Core.Test.MetadataSource.BookInfo
             {
                 WorkLookups++;
                 WorkWasInteractive = interactiveSearch;
-                return NativeWork();
+                var work = NativeWork();
+                if (ReturnUntitledWork)
+                {
+                    work.Title = null;
+                    work.Books[0].Title = null;
+                }
+
+                return work;
             }
 
             public WorkResource GetEdition(string foreignEditionId, bool interactiveSearch = false)
@@ -320,6 +328,24 @@ namespace Chaptarr.Core.Test.MetadataSource.BookInfo
                 Assert.That(result.Item2.Editions[0].ForeignEditionId, Is.EqualTo("hc:edition:201"));
                 Assert.That(result.Item2.Editions[0].NarratorNames, Is.EqualTo(new[] { "Voice Example" }));
                 Assert.That(result.Item2.Author.HardcoverAuthorId, Is.EqualTo("hc:42"));
+            });
+        }
+
+        [Test]
+        public void should_preserve_identity_when_a_hardcover_work_and_edition_have_no_title()
+        {
+            var nativeProvider = new NativeHardcoverMetadataProxy { ReturnUntitledWork = true };
+            var (proxy, _) = CreateProxy(new RecordingHardcoverSearchClient(() => new List<object>()), nativeProvider);
+
+            var result = proxy.GetBookInfo("hc:101", BookMediaType.Ebook);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Item2.HardcoverBookId, Is.EqualTo("hc:101"));
+                Assert.That(result.Item2.Title, Is.Empty);
+                Assert.That(result.Item2.Editions, Has.Count.EqualTo(1));
+                Assert.That(result.Item2.Editions[0].Title, Is.Empty);
+                Assert.That(result.Item2.Editions[0].HardcoverEditionId, Is.EqualTo("201"));
             });
         }
 
