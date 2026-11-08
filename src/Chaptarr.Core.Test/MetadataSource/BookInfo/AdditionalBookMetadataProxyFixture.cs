@@ -148,6 +148,49 @@ namespace Chaptarr.Core.Test.MetadataSource.BookInfo
         }
 
         [Test]
+        public void library_of_congress_search_should_accept_empty_and_mixed_shape_metadata()
+        {
+            var cachedResponse = new CachedResponseStub(_ => new JObject
+            {
+                ["results"] = new JArray
+                {
+                    new JObject
+                    {
+                        ["id"] = "https://www.loc.gov/item/2021999999/",
+                        ["title"] = "Untitled Description Fixture",
+                        ["contributors"] = new JArray("Fixture Author"),
+                        ["description"] = new JArray(),
+                        ["publisher"] = new JArray(),
+                        ["language"] = new JArray(),
+                        ["date"] = "2021"
+                    },
+                    new JObject
+                    {
+                        ["id"] = "https://www.loc.gov/item/2021888888/",
+                        ["title"] = new JArray("Array Title Fixture"),
+                        ["contributor"] = new JArray("Another Author"),
+                        ["description"] = new JArray(new JArray(), "Description from an array"),
+                        ["publisher"] = "Scalar Publisher",
+                        ["language"] = "eng",
+                        ["date"] = "2020"
+                    }
+                }
+            }.ToString());
+            var proxy = CreateProxy(CreateConfig(), cachedResponse);
+
+            var books = proxy.SearchProvider("fixture", "loc");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(books, Has.Count.EqualTo(2));
+                Assert.That(books[0].Editions[0].Overview, Is.Empty);
+                Assert.That(books[1].Title, Is.EqualTo("Array Title Fixture"));
+                Assert.That(books[1].Editions[0].Overview, Is.EqualTo("Description from an array"));
+                Assert.That(books[1].Editions[0].Publisher, Is.EqualTo("Scalar Publisher"));
+            });
+        }
+
+        [Test]
         public void provider_search_should_not_reuse_mutable_books_between_requests()
         {
             var config = CreateConfig();
