@@ -1053,26 +1053,35 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
                 GetGenreValues(info["categories"]));
         }
 
+        private static string FirstLocText(JToken token)
+        {
+            // The LOC catalog mixes scalars, empty arrays and nested arrays
+            // for the same field. Never cast a JArray to string when empty.
+            if (token is JArray values)
+            {
+                return values.Select(FirstLocText).FirstOrDefault(value => !value.IsNullOrWhiteSpace());
+            }
+
+            return token is JValue value && value.Type != JTokenType.Null
+                ? value.ToString()
+                : null;
+        }
+
         private Book MapLocRecord(JObject record)
         {
-            var idUrl = (string)record["id"];
-            var uri = SafeLocUri(idUrl);
-            var author = (record["contributors"] as JArray)?.Values<string>().FirstOrDefault()
-                ?? (record["contributor"] as JArray)?.Values<string>().FirstOrDefault();
-            var language = record["language"] is JArray languages
-                ? languages.Values<string>().FirstOrDefault()
-                : (string)record["language"];
+            var uri = SafeLocUri(FirstLocText(record["id"]));
+            var author = FirstLocText(record["contributors"]) ?? FirstLocText(record["contributor"]);
             return BuildBook(
                 LibraryOfCongress,
                 Encode(uri.ToString()),
-                (string)record["title"],
+                FirstLocText(record["title"]),
                 author,
-                (record["description"] as JArray)?.Values<string>().FirstOrDefault() ?? (string)record["description"],
-                (record["publisher"] as JArray)?.Values<string>().FirstOrDefault(),
-                language,
-                (string)record["date"],
+                FirstLocText(record["description"]),
+                FirstLocText(record["publisher"]),
+                FirstLocText(record["language"]),
+                FirstLocText(record["date"]),
                 null,
-                (string)record["image_url"],
+                FirstLocText(record["image_url"]),
                 record["identifiers"] as JArray,
                 uri.ToString(),
                 GetGenreValues(record["subjects"] ?? record["subject"]));
